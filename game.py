@@ -1,5 +1,5 @@
 import pygame
-
+import collisions as c #random pixel-perfect collisions downloaded until one of them worked :)
 global unlocked, entities, player1
 player1 = None
 entities = pygame.sprite.Group()
@@ -10,6 +10,16 @@ WIN_HEIGHT = 640
 HALF_WIDTH = int(WIN_WIDTH / 2)
 HALF_HEIGHT = int(WIN_HEIGHT / 2)
 
+def blit_alpha(target, source, location, opacity):
+    #opacity blit hack on .bmps from http://www.nerdparadise.com/programming/pygameblitopacity
+    x = location[0]
+    y = location[1]
+    temp = pygame.Surface((source.get_width(), source.get_height())).convert()
+    temp.blit(target, (-x, -y))
+    temp.blit(source, (0, 0))
+    temp.set_alpha(opacity)        
+    target.blit(temp, location)
+      
 load = lambda image: pygame.image.load('resources/'+image) #quicker
 
 solidTiles = {'P':True, ' ':False}
@@ -49,7 +59,8 @@ class Platform(Entity):
         self.rect = pygame.Rect(x, y, 32, 32)
         self.type = {v: k for k,v in images.items()}[imag]
         self.show = True
-        
+        self.hitmask = c.get_full_hitmask(self.image, self.rect)
+        self.blank = (0, 0, 0)
 class Player(Entity):
     def __init__(self, x, y, level, speed):
         Entity.__init__(self)
@@ -70,7 +81,8 @@ class Player(Entity):
         self.won = False
         self.type = "Player"
         self.show = True
-        
+        self.hitmask = c.get_full_hitmask(self.image, self.rect)
+        self.blank = (0, 0, 0)
     def run(self, up, left, right):
         #movement
         if up and self.onGround:
@@ -106,7 +118,8 @@ class Player(Entity):
     
     def collide(self, sx, sy, platforms):
         for p in platforms:
-            if pygame.sprite.collide_rect(self, p):
+            #if pygame.sprite.collide_rect(self, p):
+            if c.pixelPerfectCollision(self, p):
                 if p.type in deadly:
                     self.die()
                     
@@ -260,7 +273,7 @@ def run(l):
         
         for e in entities:
             if e.show:
-                e.image.unlock()
+                #blit_alpha(screen, e.image, camera.apply(e), 128)
                 screen.blit(e.image, camera.apply(e))
         if i % 3 == 0:
             player1.frameset()
