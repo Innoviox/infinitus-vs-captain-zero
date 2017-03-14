@@ -1,6 +1,7 @@
-import pygame, sys, random
+import pygame
 
-global unlocked, entities
+global unlocked, entities, player1
+player1 = None
 entities = pygame.sprite.Group()
 unlocked = []
 
@@ -12,15 +13,22 @@ HALF_HEIGHT = int(WIN_HEIGHT / 2)
 load = lambda image: pygame.image.load('resources/'+image) #quicker
 
 solidTiles = {'P':True, ' ':False}
+player_images = {
+                 'PWalk1': load('adventurer_walk1.bmp'),
+                 'PWalk2': load('adventurer_walk2.bmp'),
+                 'PJump': load('adventurer_jump.bmp'),
+                 'PFall': load('adventurer_fall.bmp'),
+                 'PIdle': load('adventurer_idle.bmp'),
+                }
 images = {
-          'T': load('top.bmp'),
-          'B': load('bottom.bmp'),
-          'E': load('door-top.bmp'), 
-          'F': load('door-bottom.bmp'), 
-          'L': load('lock-red.bmp'), 
-          'K': load('key-red.bmp'),
-          'A': load('lava.bmp'),
-          'S': load('spikes.bmp'),
+          'T' : load('top.bmp'),
+          'B' : load('bottom.bmp'),
+          'E' : load('door-top.bmp'), 
+          'F' : load('door-bottom.bmp'), 
+          'L' : load('lock-red.bmp'), 
+          'K' : load('key-red.bmp'),
+          'A' : load('lava.bmp'),
+          'S' : load('spikes.bmp'),
          }
 
 empty = [' ', '@']
@@ -55,16 +63,14 @@ class Player(Entity):
         self.sy = 0
         
         self.onGround = False
-        
         self.rect = pygame.Rect(x, y, 32, 32)
-
-        self.image = pygame.Surface((32, 32))
-        self.image.convert()
-        self.image.fill(pygame.Color("#AA00D0"))
+        self.frame = 1
+        self.frameset()
 
         self.won = False
         self.type = "Player"
         self.show = True
+        
     def run(self, up, left, right):
         #movement
         if up and self.onGround:
@@ -75,6 +81,12 @@ class Player(Entity):
             self.sx = 8
         else:
             self.sx = 0
+
+        #entropy
+        if self.sx != 0:
+            if self.sx < 0:self.sx += 0.03
+            self.sx *= 0.75
+
         #gravity
         if not self.onGround:
             self.sy += 0.3
@@ -85,11 +97,13 @@ class Player(Entity):
         self.rect.top += self.sy
         self.onGround = False
         self.collide(0, self.sy, self.level.platforms)
-
+        
         if self.rect.top < 0:
-            self.rect.top = 0
+            self.rect.top = self.sy = 0
+            
         if self.rect.left < 0:
-            self.rect.left = 0
+            self.rect.left = self.sx = 0
+    
     def collide(self, sx, sy, platforms):
         for p in platforms:
             if pygame.sprite.collide_rect(self, p):
@@ -117,9 +131,24 @@ class Player(Entity):
                         
                     elif sy < 0:
                         self.rect.top = p.rect.bottom
+                        self.sy = 0
     def die(self):
-        self.rect = pygame.Rect(0, 0, 32, 32)
+        self.rect = pygame.Rect(self.x, self.y, 32, 32)
         self.sx = self.sy = 0
+        
+    def frameset(self):
+        self.frame = -self.frame + 3 #1->2, 2->1
+        if self.sy < 0:
+            self.image = player_images['PJump']
+        elif self.sy > 0 and self.sy not in [0.3, 0.6, 0.8999999999999999]:
+            self.image = player_images['PFall']
+        elif self.sx != 0:
+            self.image = player_images[f'PWalk{self.frame}']
+        else:
+            self.image = player_images['PIdle']
+        if self.sx < 0:
+            self.image = pygame.transform.flip(self.image, True, False)
+        self.image = pygame.transform.scale(self.image, (23, 32))
         
 class Level():
     def __init__(self, tile_width, tile_height, level):
@@ -140,7 +169,7 @@ class Level():
         for ri, row in enumerate(self.level):
             for ci, col in enumerate(row):
                 if col == square:
-                    yield ri, ci
+                    yield ci, ri
         
 class Camera():
     def __init__(self, width, height):
@@ -174,12 +203,13 @@ def unlock(_type, platforms=entities, rep=' '):
     for i in platforms:
         if i.type == _type:
             destroy(i)
+
 def run(l):
     level = Level(32, 32, l)
     level.start()
     
     p1 = next(level.find('@'))
-
+    global player1
     player1 = Player(p1[0]*32, p1[1]*32, level, 5)
     
     bg = pygame.Surface((32,32))
@@ -198,6 +228,7 @@ def run(l):
     camera = Camera(total_level_width, total_level_height)
 
     up = left = right = False
+    i=0
     while not player1.won:
         clock.tick(60)
         screen.fill((255, 255, 255))
@@ -229,23 +260,26 @@ def run(l):
         
         for e in entities:
             if e.show:
+                e.image.unlock()
                 screen.blit(e.image, camera.apply(e))
-            
+        if i % 3 == 0:
+            player1.frameset()
+        i += 1
         pygame.display.update()
-        
+    
 def main():
     pygame.init()
     l = [
-       '@                            LLL           T',
+       '                             LLL           T',
        'T                            LEL           B',
-       'B                       S    LFL           B',
+       'B                       SS   LFL           B',
        'B                    TTTTTTTTTTT           B',
        'B                                          B',
        'B                                          B',
        'B                                          B',
        'B    TTTTTTTT                              B',
        'B                                          B',
-       'B                          TTTTTTT         B',
+       'B                   @      TTTTTTT         B',
        'B                 TTTTTT                   B',
        'B                                          B',
        'B         TTTTTTT                          B',
@@ -264,4 +298,8 @@ def main():
     run(l)
     print('You win!')
     raise SystemExit
+
 main()
+
+
+
