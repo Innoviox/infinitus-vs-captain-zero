@@ -1,23 +1,33 @@
 import pygame, sys, random
 
-global entities
+global unlocked, entities
+entities = pygame.sprite.Group()
+unlocked = []
 
 WIN_WIDTH = 800
 WIN_HEIGHT = 640
 HALF_WIDTH = int(WIN_WIDTH / 2)
 HALF_HEIGHT = int(WIN_HEIGHT / 2)
 
-DISPLAY = (WIN_WIDTH, WIN_HEIGHT)
-DEPTH = 32
-FLAGS = 0
-CAMERA_SLACK = 30
-
-sign = lambda a: (a > 0) - (a < 0) #official python workaround
-q = lambda: sys.exit()
+load = lambda image: pygame.image.load('resources/'+image) #quicker
 
 solidTiles = {'P':True, ' ':False}
-images = {'P': '#DDDDDD', 'F':'#00FF00', 'L':'#FF0000'}
-empty = [' ', '@', '!', '?']
+images = {
+          'T': load('top.bmp'),
+          'B': load('bottom.bmp'),
+          'E': load('door-top.bmp'), 
+          'F': load('door-bottom.bmp'), 
+          'L': load('lock-red.bmp'), 
+          'K': load('key-red.bmp'),
+          'A': load('lava.bmp'),
+          'S': load('spikes.bmp'),
+         }
+
+empty = [' ', '@']
+deadly = ['A', 'S']
+winners = ['E', 'F']
+keys = {'K': 'L'}
+
 screen = pygame.display.set_mode((800, 640), 0, 32)
 
 class Entity(pygame.sprite.Sprite):
@@ -27,11 +37,10 @@ class Entity(pygame.sprite.Sprite):
 class Platform(Entity):
     def __init__(self, x, y, imag):
         Entity.__init__(self)
-        self.image = pygame.Surface((32, 32))
-        self.image.convert()
-        self.image.fill(pygame.Color(imag))
+        self.image = imag
         self.rect = pygame.Rect(x, y, 32, 32)
         self.type = {v: k for k,v in images.items()}[imag]
+        self.show = True
         
 class Player(Entity):
     def __init__(self, x, y, level, speed):
@@ -55,7 +64,7 @@ class Player(Entity):
 
         self.won = False
         self.type = "Player"
-        
+        self.show = True
     def run(self, up, left, right):
         #movement
         if up and self.onGround:
@@ -84,24 +93,34 @@ class Player(Entity):
     def collide(self, sx, sy, platforms):
         for p in platforms:
             if pygame.sprite.collide_rect(self, p):
-                if p.type == 'L':
+                if p.type in deadly:
                     self.die()
-                elif p.type == 'F':
+                    
+                elif p.type in winners:
                     self.won = True
+                    
+                elif p.type in keys:
+                    unlock(keys[p.type])
+                    unlock(p.type)
+                    
                 else:
                     if sx > 0:
                         self.rect.right = p.rect.left
+                        
                     elif sx < 0:
                         self.rect.left = p.rect.right
+                        
                     if sy > 0:
                         self.rect.bottom = p.rect.top
                         self.onGround = True
                         self.sy = 0
+                        
                     elif sy < 0:
                         self.rect.top = p.rect.bottom
     def die(self):
         self.rect = pygame.Rect(0, 0, 32, 32)
-        self.sx = self.sy = 0        
+        self.sx = self.sy = 0
+        
 class Level():
     def __init__(self, tile_width, tile_height, level):
         self.height = len(level)
@@ -121,85 +140,62 @@ class Level():
         for ri, row in enumerate(self.level):
             for ci, col in enumerate(row):
                 if col == square:
-                    return ri, ci
+                    yield ri, ci
         
 class Camera():
-    def __init__(self, camera_func, width, height):
-        self.camera_func = camera_func
+    def __init__(self, width, height):
         self.width = width
         self.height = height
         self.state = pygame.Rect(0, 0, width, height)
+        
+    def camera(self, target_rect):
+        l, t, _, _ = target_rect
+        _, _, w, h = self.state
+        l, t, _, _ = -l+HALF_WIDTH, -t+HALF_HEIGHT, w, h
+
+        l = min(0, l)                           # stop scrolling at the left edge
+        l = max(-(self.state.width-WIN_WIDTH), l)   # stop scrolling at the right edge
+        t = max(-(self.state.height-WIN_HEIGHT), t) # stop scrolling at the bottom
+        t = min(0, t)                           # stop scrolling at the top
+        return pygame.Rect(l, t, w, h)
 
     def apply(self, target):
         return target.rect.move(self.state.topleft)
 
     def update(self, target):
-        self.state = self.camera_func(self.state, target.rect)
-    def reset(self):
-        print('resetting')
-        self.state = pygame.Rect(0, 0, self.width, self.height)
-def simple_camera(camera, target_rect):
-    l, t, _, _ = target_rect
-    _, _, w, h = camera
-    return pygame.Rect(-l+HALF_WIDTH, -t+HALF_HEIGHT, w, h)
+        self.state = self.camera(target.rect)
 
-def complex_camera(camera, target_rect):
-    l, t, _, _ = target_rect
-    _, _, w, h = camera
-    l, t, _, _ = -l+HALF_WIDTH, -t+HALF_HEIGHT, w, h
-
-    l = min(0, l)                           # stop scrolling at the left edge
-    l = max(-(camera.width-WIN_WIDTH), l)   # stop scrolling at the right edge
-    t = max(-(camera.height-WIN_HEIGHT), t) # stop scrolling at the bottom
-    t = min(0, t)                           # stop scrolling at the top
-    return pygame.Rect(l, t, w, h)
-
-def main():
-    pygame.init()
-    l = [
-        "@                             L            P",
-        "P                             L            P",
-        "P                             LF           P",
-        "P                    PPPPPPPPPPP           P",
-        "P                                          P",
-        "P                                          P",
-        "P                                          P",
-        "P    PPPPPPPP                              P",
-        "P                                          P",
-        "P                          PPPPPPP         P",
-        "P                 PPPPPP                   P",
-        "P                                          P",
-        "P         PPPPPPP                          P",
-        "P                                          P",
-        "P                     PPPPPP               P",
-        "P                                          P",
-        "P   PPPPPPPPPPP                            P",
-        "P                                          P",
-        "P                 PPPPPPPPPPP              P",
-        "P                                          P",
-        "P                                          P",
-        "P                                          P",
-        "P                                          P",
-        "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
-        ]
+def destroy(e):
+    e.show = False
+    e.rect.width=0
+    e.rect.height=0
+    
+def unlock(_type, platforms=entities, rep=' '):
+    for i in platforms:
+        if i.type == _type:
+            destroy(i)
+def run(l):
     level = Level(32, 32, l)
     level.start()
     
-    p1 = level.find('@')
+    p1 = next(level.find('@'))
 
     player1 = Player(p1[0]*32, p1[1]*32, level, 5)
+    
+    bg = pygame.Surface((32,32))
+    bg.convert()
+    bg.fill(pygame.Color("#000000"))
     
     clock = pygame.time.Clock()
     
     global entities
-    entities = pygame.sprite.Group()
     for p in level.platforms:
         entities.add(p)
     entities.add(player1)
         
     total_level_width  = len(level.level[0])*32
     total_level_height = len(level.level)*32
-    camera = Camera(complex_camera, total_level_width, total_level_height)
+    camera = Camera(total_level_width, total_level_height)
 
     up = left = right = False
     while not player1.won:
@@ -222,13 +218,50 @@ def main():
                     right = False
                 if e.key == pygame.K_LEFT:
                     left = False
-
+                    
+        # draw background
+        for y in range(32):
+            for x in range(32):
+                screen.blit(bg, (x * 32, y * 32))
+                
         player1.run(up, left, right)
         camera.update(player1)
         
         for e in entities:
-            screen.blit(e.image, camera.apply(e))
+            if e.show:
+                screen.blit(e.image, camera.apply(e))
             
         pygame.display.update()
-
+        
+def main():
+    pygame.init()
+    l = [
+       '@                            LLL           T',
+       'T                            LEL           B',
+       'B                       S    LFL           B',
+       'B                    TTTTTTTTTTT           B',
+       'B                                          B',
+       'B                                          B',
+       'B                                          B',
+       'B    TTTTTTTT                              B',
+       'B                                          B',
+       'B                          TTTTTTT         B',
+       'B                 TTTTTT                   B',
+       'B                                          B',
+       'B         TTTTTTT                          B',
+       'B                                          B',
+       'B                     TTTTTT               B',
+       'B                                          B',
+       'B   TTTTTTTTTTT                            B',
+       'B                                          B',
+       'B                 TTTTTTTTTTT              B',
+       'B                                          B',
+       'B                                          B',
+       'B                                          B',
+       'B                                       K  B',
+       'BTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAATTTTB'
+       ]
+    run(l)
+    print('You win!')
+    raise SystemExit
 main()
