@@ -1,5 +1,6 @@
 import pygame
 import os
+import time
 from PIL import Image
 
 global unlocked, entities, player1
@@ -7,8 +8,10 @@ player1 = None
 entities = pygame.sprite.Group()
 unlocked = []
 
-WIN_WIDTH = 800
-WIN_HEIGHT = 640
+WIN_WIDTH = 800#1280
+WIN_HEIGHT = 640#800
+screen = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT), 0, 32)
+
 HALF_WIDTH = int(WIN_WIDTH / 2)
 HALF_HEIGHT = int(WIN_HEIGHT / 2)
 
@@ -30,6 +33,8 @@ images = {
           'K' : load('key-red.png'),
           'A' : load('lava.png'),
           'S' : load('spikes.png'),
+          'G' : load('door-open-top.png'),
+          'H' : load('door-open-bottom.png'),
          }
 
 player_prefix = "alienBlue_"
@@ -48,7 +53,7 @@ deadly = ['A', 'S']
 winners = ['E', 'F']
 keys = {'K': 'L'}
 
-screen = pygame.display.set_mode((800, 640), 0, 32)
+
 
 class Entity(pygame.sprite.Sprite):
     def __init__(self):
@@ -61,7 +66,9 @@ class Platform(Entity):
         self.rect = pygame.Rect(x, y, SIZE, SIZE//2)
         self.type = {v: k for k,v in images.items()}[imag]
         self.show = True
-
+        self.x = x
+        self.y = y
+        
 class Player(Entity):
     def __init__(self, x, y, level, speed):
         Entity.__init__(self)
@@ -115,7 +122,11 @@ class Player(Entity):
             
         if self.rect.left < 0:
             self.rect.left = self.sx = 0
-    
+
+    def fall(self):
+        while not self.onGround:
+            self.run(False, False, False)
+            
     def collide(self, sx, sy, platforms):
         for p in platforms:
             if pygame.sprite.collide_rect(self, p):
@@ -145,7 +156,7 @@ class Player(Entity):
                         self.rect.top = p.rect.bottom
                         self.sy = 0
     def die(self):
-        self.rect = pygame.Rect(self.x, self.y, SIZE, SIZE)
+        self.rect = pygame.Rect(self.x, self.y, SIZE, SIZE*2)
         self.sx = self.sy = 0
         
     def frameset(self):
@@ -169,13 +180,16 @@ class Level():
         self.tile_width = tile_width
         self.tile_height = tile_height
         self.level = level
-        
+
+    def create_platform(self, ci, ri, _type):
+        return Platform(ci*self.tile_height, ri*self.tile_width, _type)
+    
     def start(self):
         self.platforms = []
         for ri, row in enumerate(self.level):
             for ci, col in enumerate(row):
                 if col not in empty:
-                    self.platforms.append(Platform(ci*self.tile_height, ri*self.tile_width, images[col]))
+                    self.platforms.append(self.create_platform(ci, ri, images[col]))
 
     def find(self, square):
         for ri, row in enumerate(self.level):
@@ -216,6 +230,16 @@ def unlock(_type, platforms=entities, rep=' '):
         if i.type == _type:
             destroy(i)
 
+def full_blit(bg, camera):
+    for y in range(SIZE):
+        for x in range(SIZE):
+            screen.blit(bg, (x * SIZE, y * SIZE))
+            
+    global entities                    
+    for e in entities:
+        if e.show:
+            screen.blit(e.image, camera.apply(e))
+
 def run(l):
     level = Level(SIZE, SIZE, l)
     level.start()
@@ -242,7 +266,7 @@ def run(l):
     up = left = right = False
     i=0
     while not player1.won:
-        clock.tick(60)
+        #clock.tick(60)
         screen.fill((255, 255, 255))
         
         for e in pygame.event.get():
@@ -261,23 +285,43 @@ def run(l):
                     right = False
                 if e.key == pygame.K_LEFT:
                     left = False
-                    
-        # draw background
-        for y in range(SIZE):
-            for x in range(SIZE):
-                screen.blit(bg, (x * SIZE, y * SIZE))
+                
+
                 
         player1.run(up, left, right)
         camera.update(player1)
-        
-        for e in entities:
-            if e.show:
-                screen.blit(e.image, camera.apply(e))
+
         if i % 3/SPEED_SHIFT == 0:
             player1.frameset()
         i += 1
+
+        full_blit(bg, camera)
         pygame.display.update()
+        
+    for (i,p) in enumerate(level.platforms):
+        if p.type == 'E':
+            t = (i,p)
+        if p.type == 'F':
+            b = i,p
+    a=Platform(t[1].x, t[1].y, images['G'])
+    c=Platform(b[1].x, b[1].y, images['H'])
+    level.platforms[t[0]] = a
+    level.platforms[b[0]] = c
     
+    entities.remove(t[1])
+    entities.add(a)
+    entities.remove(b[1])
+    entities.add(c)
+    full_blit(bg, camera)
+    pygame.display.update()
+
+    player1.fall()
+    player1.frameset()
+    #player1.rect.left -= SIZE
+    full_blit(bg, camera)
+    pygame.display.update()
+    time.sleep(1)
+    #raise SystemExit
 def main():
     pygame.init()
     l = [
@@ -311,6 +355,3 @@ def main():
     raise SystemExit
 
 main()
-
-
-
