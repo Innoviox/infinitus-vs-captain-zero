@@ -1,5 +1,7 @@
 import pygame
-import collisions as c #random pixel-perfect collisions downloaded until one of them worked :)
+import os
+from PIL import Image
+
 global unlocked, entities, player1
 player1 = None
 entities = pygame.sprite.Group()
@@ -10,37 +12,37 @@ WIN_HEIGHT = 640
 HALF_WIDTH = int(WIN_WIDTH / 2)
 HALF_HEIGHT = int(WIN_HEIGHT / 2)
 
-def blit_alpha(target, source, location, opacity):
-    #opacity blit hack on .bmps from http://www.nerdparadise.com/programming/pygameblitopacity
-    x = location[0]
-    y = location[1]
-    temp = pygame.Surface((source.get_width(), source.get_height())).convert()
-    temp.blit(target, (-x, -y))
-    temp.blit(source, (0, 0))
-    temp.set_alpha(opacity)        
-    target.blit(temp, location)
-      
-load = lambda image: pygame.image.load('resources/'+image) #quicker
+SIZE = 32
+SPEED_SHIFT = SIZE/32
 
-solidTiles = {'P':True, ' ':False}
-player_images = {
-                 'PWalk1': load('adventurer_walk1.bmp'),
-                 'PWalk2': load('adventurer_walk2.bmp'),
-                 'PJump': load('adventurer_jump.bmp'),
-                 'PFall': load('adventurer_fall.bmp'),
-                 'PIdle': load('adventurer_idle.bmp'),
-                }
+def load(image, size=(SIZE, SIZE), player=False):
+    image = Image.open('resources/'+image)
+    if player:
+        size = (SIZE, SIZE*2)
+    return pygame.transform.smoothscale(pygame.image.fromstring(image.tobytes(), image.size, image.mode), size)
+
 images = {
-          'T' : load('top.bmp'),
-          'B' : load('bottom.bmp'),
-          'E' : load('door-top.bmp'), 
-          'F' : load('door-bottom.bmp'), 
-          'L' : load('lock-red.bmp'), 
-          'K' : load('key-red.bmp'),
-          'A' : load('lava.bmp'),
-          'S' : load('spikes.bmp'),
+          'T' : load('top.png'),
+          'B' : load('bottom.png'),
+          'E' : load('door-closed-top.png'), 
+          'F' : load('door-closed-bottom.png'), 
+          'L' : load('lock-red.png'), 
+          'K' : load('key-red.png'),
+          'A' : load('lava.png'),
+          'S' : load('spikes.png'),
          }
 
+player_prefix = "alienBlue_"
+player_load = lambda image: load(player_prefix + image, player=True)
+player_images = {
+                 'PWalk1': player_load('walk1.png'),
+                 'PWalk2': player_load('walk2.png'),
+                 'PJump': player_load('jump.png'),
+                 'PFall': player_load('fall.png'),
+                 'PIdle': player_load('idle.png'),
+                }
+
+solidTiles = {'P':True, ' ':False}
 empty = [' ', '@']
 deadly = ['A', 'S']
 winners = ['E', 'F']
@@ -56,11 +58,10 @@ class Platform(Entity):
     def __init__(self, x, y, imag):
         Entity.__init__(self)
         self.image = imag
-        self.rect = pygame.Rect(x, y, 32, 32)
+        self.rect = pygame.Rect(x, y, SIZE, SIZE//2)
         self.type = {v: k for k,v in images.items()}[imag]
         self.show = True
-        self.hitmask = c.get_full_hitmask(self.image, self.rect)
-        self.blank = (0, 0, 0)
+
 class Player(Entity):
     def __init__(self, x, y, level, speed):
         Entity.__init__(self)
@@ -74,23 +75,22 @@ class Player(Entity):
         self.sy = 0
         
         self.onGround = False
-        self.rect = pygame.Rect(x, y, 32, 32)
+        self.rect = pygame.Rect(x, y, SIZE, SIZE*2)
         self.frame = 1
         self.frameset()
 
         self.won = False
         self.type = "Player"
         self.show = True
-        self.hitmask = c.get_full_hitmask(self.image, self.rect)
-        self.blank = (0, 0, 0)
+
     def run(self, up, left, right):
         #movement
         if up and self.onGround:
-            self.sy = -11
+            self.sy = -11 * SPEED_SHIFT
         if left:
-            self.sx = -8
+            self.sx = -8 * SPEED_SHIFT
         elif right:
-            self.sx = 8
+            self.sx = 8 * SPEED_SHIFT
         else:
             self.sx = 0
 
@@ -101,7 +101,7 @@ class Player(Entity):
 
         #gravity
         if not self.onGround:
-            self.sy += 0.3
+            self.sy += 0.3 * SPEED_SHIFT
 
         self.rect.left += self.sx
         self.collide(self.sx, 0, self.level.platforms)
@@ -118,8 +118,7 @@ class Player(Entity):
     
     def collide(self, sx, sy, platforms):
         for p in platforms:
-            #if pygame.sprite.collide_rect(self, p):
-            if c.pixelPerfectCollision(self, p):
+            if pygame.sprite.collide_rect(self, p):
                 if p.type in deadly:
                     self.die()
                     
@@ -146,7 +145,7 @@ class Player(Entity):
                         self.rect.top = p.rect.bottom
                         self.sy = 0
     def die(self):
-        self.rect = pygame.Rect(self.x, self.y, 32, 32)
+        self.rect = pygame.Rect(self.x, self.y, SIZE, SIZE)
         self.sx = self.sy = 0
         
     def frameset(self):
@@ -161,7 +160,7 @@ class Player(Entity):
             self.image = player_images['PIdle']
         if self.sx < 0:
             self.image = pygame.transform.flip(self.image, True, False)
-        self.image = pygame.transform.scale(self.image, (23, 32))
+        
         
 class Level():
     def __init__(self, tile_width, tile_height, level):
@@ -218,14 +217,14 @@ def unlock(_type, platforms=entities, rep=' '):
             destroy(i)
 
 def run(l):
-    level = Level(32, 32, l)
+    level = Level(SIZE, SIZE, l)
     level.start()
     
     p1 = next(level.find('@'))
     global player1
-    player1 = Player(p1[0]*32, p1[1]*32, level, 5)
+    player1 = Player(p1[0]*SIZE, p1[1]*SIZE, level, 5)
     
-    bg = pygame.Surface((32,32))
+    bg = pygame.Surface((SIZE,SIZE))
     bg.convert()
     bg.fill(pygame.Color("#000000"))
     
@@ -236,8 +235,8 @@ def run(l):
         entities.add(p)
     entities.add(player1)
         
-    total_level_width  = len(level.level[0])*32
-    total_level_height = len(level.level)*32
+    total_level_width  = len(level.level[0])*SIZE
+    total_level_height = len(level.level)*SIZE
     camera = Camera(total_level_width, total_level_height)
 
     up = left = right = False
@@ -264,18 +263,17 @@ def run(l):
                     left = False
                     
         # draw background
-        for y in range(32):
-            for x in range(32):
-                screen.blit(bg, (x * 32, y * 32))
+        for y in range(SIZE):
+            for x in range(SIZE):
+                screen.blit(bg, (x * SIZE, y * SIZE))
                 
         player1.run(up, left, right)
         camera.update(player1)
         
         for e in entities:
             if e.show:
-                #blit_alpha(screen, e.image, camera.apply(e), 128)
                 screen.blit(e.image, camera.apply(e))
-        if i % 3 == 0:
+        if i % 3/SPEED_SHIFT == 0:
             player1.frameset()
         i += 1
         pygame.display.update()
