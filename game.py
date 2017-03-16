@@ -32,13 +32,16 @@ images = {
           'F' : load('door-closed-bottom.png'),
           'G' : load('door-open-top.png'),
           'H' : load('door-open-bottom.png'),
-          'I' : load('shipBlue.png'),
-          'J' : load('shipBlue_manned.png', size=(SIZE*2,SIZE*2)),
+          'I' : load('ship-blue.png'),
+          'J' : load('ship-blue-manned.png', size=(SIZE*2,SIZE*2)),
           'K' : load('key-red.png'),
-          'L' : load('lock-red.png'), 
+          'L' : load('lock-red.png'),
+          'M1': load('slime1.png'),
+          'M2': load('slime2.png'),
+          'N' : load('key-blue.png'),
+          'O' : load('lock-blue.png'),
           'T' : load('top.png'),
           'S' : load('spikes.png'),
-
          }
 
 player_prefix = "alienBlue_"
@@ -55,9 +58,11 @@ solidTiles = {'P':True, ' ':False}
 empty = [' ', '@']
 deadly = ['A', 'S']
 winners = ['E', 'F', 'I']
-keys = {'K': 'L'}
-
-
+keys = {'K': 'L', 'N': 'O'}
+enemies = ['M', 'M1', 'M2']
+enemy_attr_dict = {
+                   'M': [2, 17, 5]
+                  }
 
 class Entity(pygame.sprite.Sprite):
     def __init__(self):
@@ -74,6 +79,95 @@ class Platform(Entity):
         self.y = y
         if self.type == 'J':
             self.rect = pygame.Rect(x, y-SIZE, SIZE, SIZE//2)
+
+class Enemy(Platform):
+    def __init__(self, x, y, imag, frameMax, distance, speed):
+        #assert imag in enemies
+        Platform.__init__(self, x, y, images[imag+'1'])
+        self.type = self.type[0]
+        self.frame = 1
+        self.sx = 0
+        self.sy = 0
+        self.change = speed
+        self.i = 0
+        self.d = distance
+        self.m = frameMax
+        self.fc = 1
+        self.onGround = False
+        self.x += random.randint(-(self.m//2)*self.change, (self.m//2)*self.change)
+        #self.fall()
+        
+    def animate(self):#, platforms):
+        self.i += 1
+        if self.i % self.d == 0:
+            self.change = -self.change
+        self.frame += self.fc
+        if self.frame == self.m:
+            self.fc = -1
+        if self.frame == 1:
+            self.fc = 1
+        self.image = images[self.type+str(self.frame)]
+        if self.sx > 0:
+            self.image = pygame.transform.flip(self.image, True, False)
+        self.sx = self.change
+        self.run()
+        
+    def run(self):#, platforms):
+##        #entropy
+##        if self.sx != 0:
+##            if self.sx < 0:self.sx += 0.03
+##            self.sx *= 0.75
+
+##        #gravity
+##        if not self.onGround:
+##            self.sy += 0.3 * SPEED_SHIFT
+
+        self.rect.left += self.sx
+##        self.collide(self.sx, 0, platforms)
+##
+##        self.rect.top += self.sy
+##        self.onGround = False
+##        self.collide(0, self.sy, platforms)
+##        
+##        if self.rect.top < 0:
+##            self.rect.top = self.sy = 0
+##            
+##        if self.rect.left < 0:
+##            self.rect.left = self.sx = 0
+
+    def fall(self):
+        while not self.onGround:
+            self.run()
+            
+    def collide(self, sx, sy, platforms):
+        for p in platforms:
+            if not p is self:
+                if pygame.sprite.collide_rect(self, p):
+                    if p.type in deadly:
+                        self.die()
+                        
+                    elif p.type in winners:
+                        self.won = True
+                        
+                    elif p.type in keys:
+                        unlock(keys[p.type])
+                        unlock(p.type)
+                        
+                    else:
+                        if sx > 0:
+                            self.rect.right = p.rect.left
+                            
+                        elif sx < 0:
+                            self.rect.left = p.rect.right
+                            
+                        if sy > 0:
+                            self.rect.bottom = p.rect.top
+                            self.onGround = True
+                            self.sy = 0
+                            
+                        elif sy < 0:
+                            self.rect.top = p.rect.bottom
+                            self.sy = 0        
 class Player(Entity):
     def __init__(self, x, y, level, speed):
         Entity.__init__(self)
@@ -122,8 +216,9 @@ class Player(Entity):
         self.onGround = False
         self.collide(0, self.sy, self.level.platforms)
         
-        if self.rect.top < 0:
-            self.rect.top = self.sy = 0
+        if self.rect.top < -SIZE:
+            self.rect.top = -SIZE
+            self.sy = 0
             
         if self.rect.left < 0:
             self.rect.left = self.sx = 0
@@ -133,7 +228,7 @@ class Player(Entity):
             self.run(False, False, False)
             
     def collide(self, sx, sy, platforms):
-        for p in platforms:
+        def _collide(p):
             if pygame.sprite.collide_rect(self, p):
                 if p.type in deadly:
                     self.die()
@@ -144,6 +239,9 @@ class Player(Entity):
                 elif p.type in keys:
                     unlock(keys[p.type])
                     unlock(p.type)
+                    
+                elif p.type in enemies:
+                    self.die()
                     
                 else:
                     if sx > 0:
@@ -160,6 +258,10 @@ class Player(Entity):
                     elif sy < 0:
                         self.rect.top = p.rect.bottom
                         self.sy = 0
+        for p in platforms:
+            _collide(p)
+        for p in self.level.enemies:
+            _collide(p)
     def die(self):
         self.rect = pygame.Rect(self.x, self.y, SIZE, SIZE*2)
         self.sx = self.sy = 0
@@ -188,13 +290,18 @@ class Level():
 
     def create_platform(self, ci, ri, _type):
         return Platform(ci*self.tile_height, ri*self.tile_width, _type)
-    
+    def create_enemy(self, ci, ri, _type):
+        return Enemy(ci*self.tile_height, ri*self.tile_width, _type, *enemy_attr_dict[_type])
     def start(self):
         self.platforms = []
+        self.enemies = []
         for ri, row in enumerate(self.level):
             for ci, col in enumerate(row):
                 if col not in empty:
-                    self.platforms.append(self.create_platform(ci, ri, images[col]))
+                    if col in enemies:
+                        self.enemies.append(self.create_enemy(ci, ri, col))
+                    else:
+                        self.platforms.append(self.create_platform(ci, ri, images[col]))
 
     def find(self, square):
         for ri, row in enumerate(self.level):
@@ -227,8 +334,14 @@ class Camera():
 
 def destroy(e):
     e.show = False
-    e.rect.width=0
-    e.rect.height=0
+    e.rect.width = e.rect.height = 0
+    e.rect.top = e.rect.left = 1923781470398 #get outta here
+
+def revive(e):
+    e.show = True
+    e.rect.width = e.rect.height = SIZE
+    e.rect.top = e.x
+    e.rect.left = e.y
     
 def unlock(_type, platforms=entities, rep=' '):
     for i in platforms:
@@ -236,8 +349,8 @@ def unlock(_type, platforms=entities, rep=' '):
             destroy(i)
 
 def full_blit(bg, camera):
-    for y in range(SIZE):
-        for x in range(SIZE):
+    for x in range(WIN_WIDTH//SIZE):
+        for y in range(WIN_HEIGHT//SIZE):
             screen.blit(bg, (x * SIZE, y * SIZE))
             
     global entities                    
@@ -262,6 +375,8 @@ def run(l):
     global entities
     for p in level.platforms:
         entities.add(p)
+    for e in level.enemies:
+        entities.add(e)
     entities.add(player1)
         
     total_level_width  = len(level.level[0])*SIZE
@@ -271,7 +386,7 @@ def run(l):
     up = left = right = False
     i=0
     while not player1.won:
-        #clock.tick(60)
+        clock.tick(60)
         screen.fill((255, 255, 255))
         
         for e in pygame.event.get():
@@ -294,10 +409,14 @@ def run(l):
 
                 
         player1.run(up, left, right)
+
         camera.update(player1)
 
         if i % 3/SPEED_SHIFT == 0:
             player1.frameset()
+        if i % 6/SPEED_SHIFT == 0:
+            for e in level.enemies:
+                e.animate()
         i += 1
 
         full_blit(bg, camera)
@@ -329,7 +448,7 @@ def run(l):
     full_blit(bg, camera)
     pygame.display.update()
     while a.rect.top > -SIZE*2:
-        clock.tick(15)
+        clock.tick(60)
         a.rect.left += 2
         a.rect.top -= 2
         #camera.update(a)
@@ -339,20 +458,20 @@ def run(l):
 def main():
     pygame.init()
     l = [
-       '                                           T',
+       'N                                          T',
        'T                            LLL           B',
        'B                       SS   LIL           B',
        'B                    TTTTTTTTTTT           B',
        'B                                          B',
        'B                                          B',
-       'B                                          B',
+       'B     M                                    B',
        'B    TTTTTTTT                              B',
        'B                                          B',
        'B                   @      TTTTTTT         B',
        'B                 TTTTTT                   B',
        'B                                          B',
        'B         TTTTTTT                          B',
-       'B                                          B',
+       'B                       M                  B',
        'B                     TTTTTT               B',
        'B                                          B',
        'B   TTTTTTTTTTT                            B',
@@ -360,8 +479,8 @@ def main():
        'B                 TTTTTTTTTTT              B',
        'B                                          B',
        'B                                          B',
-       'B                                          B',
-       'B                                       K  B',
+       'B                                      OOO B',
+       'B                M                     OKO B',
        'BTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAATTTTB'
        ]
     run(l)
