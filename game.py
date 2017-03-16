@@ -1,6 +1,7 @@
 import pygame
 import os
 import time
+import random
 from PIL import Image
 
 global unlocked, entities, player1
@@ -25,16 +26,19 @@ def load(image, size=(SIZE, SIZE), player=False):
     return pygame.transform.smoothscale(pygame.image.fromstring(image.tobytes(), image.size, image.mode), size)
 
 images = {
-          'T' : load('top.png'),
+          'A' : load('lava.png'),
           'B' : load('bottom.png'),
           'E' : load('door-closed-top.png'), 
-          'F' : load('door-closed-bottom.png'), 
-          'L' : load('lock-red.png'), 
-          'K' : load('key-red.png'),
-          'A' : load('lava.png'),
-          'S' : load('spikes.png'),
+          'F' : load('door-closed-bottom.png'),
           'G' : load('door-open-top.png'),
           'H' : load('door-open-bottom.png'),
+          'I' : load('shipBlue.png'),
+          'J' : load('shipBlue_manned.png', size=(SIZE*2,SIZE*2)),
+          'K' : load('key-red.png'),
+          'L' : load('lock-red.png'), 
+          'T' : load('top.png'),
+          'S' : load('spikes.png'),
+
          }
 
 player_prefix = "alienBlue_"
@@ -50,7 +54,7 @@ player_images = {
 solidTiles = {'P':True, ' ':False}
 empty = [' ', '@']
 deadly = ['A', 'S']
-winners = ['E', 'F']
+winners = ['E', 'F', 'I']
 keys = {'K': 'L'}
 
 
@@ -68,7 +72,8 @@ class Platform(Entity):
         self.show = True
         self.x = x
         self.y = y
-        
+        if self.type == 'J':
+            self.rect = pygame.Rect(x, y-SIZE, SIZE, SIZE//2)
 class Player(Entity):
     def __init__(self, x, y, level, speed):
         Entity.__init__(self)
@@ -298,36 +303,45 @@ def run(l):
         full_blit(bg, camera)
         pygame.display.update()
         
+##    for (i,p) in enumerate(level.platforms):
+##        if p.type == 'E':
+##            t = (i,p)
+##        if p.type == 'F':
+##            b = i,p
+##    a=Platform(t[1].x, t[1].y, images['G'])
+##    c=Platform(b[1].x, b[1].y, images['H'])
+##    level.platforms[t[0]] = a
+##    level.platforms[b[0]] = c
     for (i,p) in enumerate(level.platforms):
-        if p.type == 'E':
+        if p.type == 'I':
             t = (i,p)
-        if p.type == 'F':
-            b = i,p
-    a=Platform(t[1].x, t[1].y, images['G'])
-    c=Platform(b[1].x, b[1].y, images['H'])
-    level.platforms[t[0]] = a
-    level.platforms[b[0]] = c
-    
+    a=Platform(t[1].x, t[1].y, images['J'])
+    level.platforms[t[0]] = a   
     entities.remove(t[1])
     entities.add(a)
-    entities.remove(b[1])
-    entities.add(c)
     full_blit(bg, camera)
     pygame.display.update()
 
     player1.fall()
     player1.frameset()
+    destroy(player1)
     #player1.rect.left -= SIZE
     full_blit(bg, camera)
     pygame.display.update()
-    time.sleep(1)
+    while a.rect.top > -SIZE*2:
+        clock.tick(15)
+        a.rect.left += 2
+        a.rect.top -= 2
+        #camera.update(a)
+        full_blit(bg, camera)
+        pygame.display.update()        
     #raise SystemExit
 def main():
     pygame.init()
     l = [
-       '                             LLL           T',
-       'T                            LEL           B',
-       'B                       SS   LFL           B',
+       '                                           T',
+       'T                            LLL           B',
+       'B                       SS   LIL           B',
        'B                    TTTTTTTTTTT           B',
        'B                                          B',
        'B                                          B',
