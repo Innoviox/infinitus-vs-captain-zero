@@ -4,7 +4,8 @@ import time
 import random
 from PIL import Image
 
-global unlocked, entities, player1
+global unlocked, entities, player1, moved
+moved = None
 player1 = None
 entities = pygame.sprite.Group()
 unlocked = []
@@ -40,8 +41,20 @@ images = {
           'M2': load('slime2.png'),
           'N' : load('key-blue.png'),
           'O' : load('lock-blue.png'),
-          'T' : load('top.png'),
+          'P1': load('lever1.png'),
+          'P2': load('lever2.png'),
+          'P3': load('lever3.png'),
+          'Q1': load('fence.png'),
+          'Q2': load('fenceBroken.png'),
+          'R' : load('metalHalf.png'),
           'S' : load('spikes.png'),
+          'T' : load('top.png'),
+          'U1': load('switchBlue1.png'),
+          'U2': load('switchBlue2.png'),
+          'V1': load('grassEnemy.png'),
+          'W1': load('spider2.png'),
+          'W2': load('spider3.png'),
+          #'W3': load('spider3.png'),
          }
 
 player_prefix = "alienBlue_"
@@ -54,14 +67,24 @@ player_images = {
                  'PIdle': player_load('idle.png'),
                 }
 
-solidTiles = {'P':True, ' ':False}
 empty = [' ', '@']
 deadly = ['A', 'S']
 winners = ['E', 'F', 'I']
 keys = {'K': 'L', 'N': 'O'}
-enemies = ['M', 'M1', 'M2']
+
+movings = {'P': 'Q', 'U': 'Q'}
+changing_attr_dict = {
+                      'P': [3],
+                      'Q': [2],
+                      'U': [2],
+                     }
+changers = ['P', 'Q', 'U']
+fences = ['Q', ['0', '1'], ['2']] #[type, [closed], [open]]
+enemies = ['M', 'M1', 'M2', 'V', 'W']
 enemy_attr_dict = {
-                   'M': [2, 17, 5]
+                   'M': [2, 17, 5, True],
+                   'V': [0, 0, 0, False],
+                   'W': [2, 25, 5, True],
                   }
 
 class Entity(pygame.sprite.Sprite):
@@ -79,9 +102,22 @@ class Platform(Entity):
         self.y = y
         if self.type == 'J':
             self.rect = pygame.Rect(x, y-SIZE, SIZE, SIZE//2)
+        self.frame=0
+class Changing(Platform):
+    def __init__(self, x, y, imag, frames):
+        Platform.__init__(self, x, y, images[imag+'1'])
+        self.type = self.type[0]
+        self.frame=0
+        self.frames = frames
+    def check(self):
+        if self.type in moved:
+            self.frame += 1
+            if self.frame <= self.frames:
+                self.image = images[self.type + str(self.frame)]
 
+            
 class Enemy(Platform):
-    def __init__(self, x, y, imag, frameMax, distance, speed):
+    def __init__(self, x, y, imag, frameMax, distance, speed, movesConstantly):
         #assert imag in enemies
         Platform.__init__(self, x, y, images[imag+'1'])
         self.type = self.type[0]
@@ -93,14 +129,36 @@ class Enemy(Platform):
         self.d = distance
         self.m = frameMax
         self.fc = 1
+        self.mc = movesConstantly
         self.onGround = False
+        self.broadcasted = False
         self.x += random.randint(-(self.m//2)*self.change, (self.m//2)*self.change)
         #self.fall()
         
     def animate(self):#, platforms):
         self.i += 1
-        if self.i % self.d == 0:
-            self.change = -self.change
+        if self.mc:
+            self.frameset()
+            self.sx = self.change
+            self.run()
+            if self.i % self.d == 0:
+                self.change = -self.change
+                
+
+        else:
+            global player1
+            if pygame.sprite.collide_rect(self, player1):
+                print('lololol')
+                self.frame += 1
+                self.broadcast()
+                self.broadcasted = True
+
+    def broadcast(self):
+        if not self.broadcasted:
+            global moved
+            moved = movings[self.imag]
+        
+    def frameset(self):
         self.frame += self.fc
         if self.frame == self.m:
             self.fc = -1
@@ -109,8 +167,6 @@ class Enemy(Platform):
         self.image = images[self.type+str(self.frame)]
         if self.sx > 0:
             self.image = pygame.transform.flip(self.image, True, False)
-        self.sx = self.change
-        self.run()
         
     def run(self):#, platforms):
 ##        #entropy
@@ -228,6 +284,22 @@ class Player(Entity):
             self.run(False, False, False)
             
     def collide(self, sx, sy, platforms):
+        def __collide(p):
+            if sx > 0:
+                self.rect.right = p.rect.left
+                
+            elif sx < 0:
+                self.rect.left = p.rect.right
+                
+            if sy > 0:
+                
+                self.rect.bottom = p.rect.top
+                self.onGround = True
+                self.sy = 0
+                
+            elif sy < 0:
+                self.rect.top = p.rect.bottom
+                self.sy = 0
         def _collide(p):
             if pygame.sprite.collide_rect(self, p):
                 if p.type in deadly:
@@ -240,24 +312,19 @@ class Player(Entity):
                     unlock(keys[p.type])
                     unlock(p.type)
                     
-                elif p.type in enemies:
+                elif p.type[0] in enemies:
                     self.die()
-                    
+                elif p.type[0] in movings.keys():
+                    global moved
+                    moved = [p.type, movings[p.type[0]]]
+
                 else:
-                    if sx > 0:
-                        self.rect.right = p.rect.left
-                        
-                    elif sx < 0:
-                        self.rect.left = p.rect.right
-                        
-                    if sy > 0:
-                        self.rect.bottom = p.rect.top
-                        self.onGround = True
-                        self.sy = 0
-                        
-                    elif sy < 0:
-                        self.rect.top = p.rect.bottom
-                        self.sy = 0
+                    if p.type[0] in fences:
+                        if str(p.frame) in fences[1]:
+                            __collide(p)
+                    else:
+                        __collide(p)
+
         for p in platforms:
             _collide(p)
         for p in self.level.enemies:
@@ -292,17 +359,23 @@ class Level():
         return Platform(ci*self.tile_height, ri*self.tile_width, _type)
     def create_enemy(self, ci, ri, _type):
         return Enemy(ci*self.tile_height, ri*self.tile_width, _type, *enemy_attr_dict[_type])
+    def create_mover(self, ci, ri, _type):
+        return Changing(ci*self.tile_height, ri*self.tile_width, _type, *changing_attr_dict[_type])
     def start(self):
         self.platforms = []
         self.enemies = []
+        self.movers = []
         for ri, row in enumerate(self.level):
             for ci, col in enumerate(row):
                 if col not in empty:
                     if col in enemies:
                         self.enemies.append(self.create_enemy(ci, ri, col))
+                    elif col in changers:
+                        self.movers.append(self.create_mover(ci, ri, col))
                     else:
                         self.platforms.append(self.create_platform(ci, ri, images[col]))
-
+        self.platforms.extend(self.movers)
+        
     def find(self, square):
         for ri, row in enumerate(self.level):
             for ci, col in enumerate(row):
@@ -353,7 +426,11 @@ def full_blit(bg, camera):
         for y in range(WIN_HEIGHT//SIZE):
             screen.blit(bg, (x * SIZE, y * SIZE))
             
-    global entities                    
+    global moved, entities
+    if moved is not None:
+        for e in entities:
+            if isinstance(e, Changing):
+                e.check()                  
     for e in entities:
         if e.show:
             screen.blit(e.image, camera.apply(e))
@@ -376,6 +453,8 @@ def run(l):
     for p in level.platforms:
         entities.add(p)
     for e in level.enemies:
+        entities.add(e)
+    for e in level.movers:
         entities.add(e)
     entities.add(player1)
         
@@ -458,13 +537,13 @@ def run(l):
 def main():
     pygame.init()
     l = [
-       'N                                          T',
-       'T                            LLL           B',
+       'N  Q                                       T',
+       'TTTTT                        LLL           B',
        'B                       SS   LIL           B',
        'B                    TTTTTTTTTTT           B',
        'B                                          B',
        'B                                          B',
-       'B     M                                    B',
+       'B     W                                    B',
        'B    TTTTTTTT                              B',
        'B                                          B',
        'B                   @      TTTTTTT         B',
@@ -473,10 +552,10 @@ def main():
        'B         TTTTTTT                          B',
        'B                       M                  B',
        'B                     TTTTTT               B',
-       'B                                          B',
+       'B   U   M                                  B',
        'B   TTTTTTTTTTT                            B',
        'B                                          B',
-       'B                 TTTTTTTTTTT              B',
+       'B                 TTTTTTTVVVT              B',
        'B                                          B',
        'B                                          B',
        'B                                      OOO B',
