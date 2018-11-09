@@ -57,7 +57,7 @@ images = {
           #'W3': load('spider3.png'),
          }
 
-player_prefix = "alienBlue_"
+player_prefix = "infinity_"
 player_load = lambda image: load(player_prefix + image, player=True)
 player_images = {
                  'PWalk1': player_load('walk1.png'),
@@ -168,28 +168,8 @@ class Enemy(Platform):
         if self.sx > 0:
             self.image = pygame.transform.flip(self.image, True, False)
         
-    def run(self):#, platforms):
-##        #entropy
-##        if self.sx != 0:
-##            if self.sx < 0:self.sx += 0.03
-##            self.sx *= 0.75
-
-##        #gravity
-##        if not self.onGround:
-##            self.sy += 0.3 * SPEED_SHIFT
-
+    def run(self):
         self.rect.left += self.sx
-##        self.collide(self.sx, 0, platforms)
-##
-##        self.rect.top += self.sy
-##        self.onGround = False
-##        self.collide(0, self.sy, platforms)
-##        
-##        if self.rect.top < 0:
-##            self.rect.top = self.sy = 0
-##            
-##        if self.rect.left < 0:
-##            self.rect.left = self.sx = 0
 
     def fall(self):
         while not self.onGround:
@@ -408,7 +388,7 @@ class Camera():
 def destroy(e):
     e.show = False
     e.rect.width = e.rect.height = 0
-    e.rect.top = e.rect.left = 1923781470398 #get outta here
+    e.rect.top = e.rect.left = 1923781470398
 
 def revive(e):
     e.show = True
@@ -500,16 +480,7 @@ def run(l):
 
         full_blit(bg, camera)
         pygame.display.update()
-        
-##    for (i,p) in enumerate(level.platforms):
-##        if p.type == 'E':
-##            t = (i,p)
-##        if p.type == 'F':
-##            b = i,p
-##    a=Platform(t[1].x, t[1].y, images['G'])
-##    c=Platform(b[1].x, b[1].y, images['H'])
-##    level.platforms[t[0]] = a
-##    level.platforms[b[0]] = c
+
     for (i,p) in enumerate(level.platforms):
         if p.type == 'I':
             t = (i,p)
@@ -523,23 +494,21 @@ def run(l):
     player1.fall()
     player1.frameset()
     destroy(player1)
-    #player1.rect.left -= SIZE
     full_blit(bg, camera)
     pygame.display.update()
     while a.rect.top > -SIZE*2:
         clock.tick(60)
         a.rect.left += 2
         a.rect.top -= 2
-        #camera.update(a)
         full_blit(bg, camera)
         pygame.display.update()        
-    #raise SystemExit
+
 def main():
     pygame.init()
     l = [
-       'N  Q                                       T',
-       'TTTTT                        LLL           B',
-       'B                       SS   LIL           B',
+       '   Q                                       T',
+       'N  T                         LLL           B',
+       'TTTBT                   SS   LIL           B',
        'B                    TTTTTTTTTTT           B',
        'B                                          B',
        'B                                          B',
@@ -555,7 +524,7 @@ def main():
        'B   U   M                                  B',
        'B   TTTTTTTTTTT                            B',
        'B                                          B',
-       'B                 TTTTTTTVVVT              B',
+       'B                 TTTTTTTTTTT              B',
        'B                                          B',
        'B                                          B',
        'B                                      OOO B',
