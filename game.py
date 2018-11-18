@@ -575,7 +575,6 @@ def run(l, function):
         full_blit(bg, camera)
         pygame.display.update()
 
-
 def battle(f, start=True):
     def render_functions():
         (ei, ni), (ez, nz) = str(f).split("\n"), str(zero_func).split("\n")
