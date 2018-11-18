@@ -568,7 +568,7 @@ def run(l, function):
         full_blit(bg, camera)
         pygame.display.update()
 
-def battle(f):
+def battle(f, start=True):
     def render_functions():
         (ei, ni), (ez, nz) = str(f).split("\n"), str(zero_func).split("\n")
         l = max(len(ni), len(nz))
@@ -593,7 +593,7 @@ def battle(f):
     text = ("Aha! You have found the infamous Captain Zero!\n"
             "\n\n\n              To battle!\n"
             "\n\n\n         Click to continue. ")
-    staggered_render_text(text)#, clickable=False)
+    if start: staggered_render_text(text)#, clickable=False)
     global zero_func
     if not zero_func:
         zero_func = gen_func()
@@ -651,7 +651,7 @@ def battle(f):
         staggered_render_text(text, staggered=False)
     sys.exit(0)
     
-def gen_func():
+def gen_func(min_=1, max_=4):
     x = np.random.rand(6)
     y = np.random.rand(6)
 
@@ -727,6 +727,17 @@ def intro():
         t += 60
     return func
 
+def win(f):
+    text = ("You have successfully escaped the planet\n"
+            "of the dreadful Captain Zero! ")
+    # staggered_render_text(text)
+    # time.sleep(1)
+    text += ("\n\n\n\n\n\nWhoa! On exiting orbit you have found\n"
+             "the dreadful captain zero has set an evil trap!\n"
+             "He must be defeated once and for all!")
+    staggered_render_text(text)
+    battle(f, start=False)
+    
 def main():
     pygame.init()
     l = [
@@ -757,7 +768,8 @@ def main():
        ]
     func = storyline()
     run(l, func)
-    print('You win!')
+    # print('You win!')
+    win(func)
     raise SystemExit
 
 main()
