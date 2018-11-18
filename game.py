@@ -591,7 +591,7 @@ def battle(f, start=True):
             nz = " " + nz
             ez = " " + ez
 
-        text = ("\n\n\n" +
+        text = ("Click to battle!\n\n\n" +
                 "        " + ei + "\n" +
                 "  lim   " + ni + "\n" +
                 "        " + "-" * l + "\n" +
