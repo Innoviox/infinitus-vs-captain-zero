@@ -570,7 +570,7 @@ def battle(f, start=True):
     text = ("Aha! You have found the infamous Captain Zero!\n"
             "\n\n\n              To battle!\n"
             "\n\n\n         Click to continue. ")
-    if start: staggered_render_text(text)#, clickable=False)
+    if start: render_text(text)#, clickable=False)
     global zero_func
     if not zero_func:
         zero_func = gen_func()
@@ -578,9 +578,9 @@ def battle(f, start=True):
         text = ("Your mightiness is:\n" + str(f) +
                 "\n\n\nCaptain Zero's mightiness is:\n" + str(zero_func) +
                 "\n\n\n        It's a BATTLE!")
-        staggered_render_text(text)#, clickable=False)
+        render_text(text)#, clickable=False)
         _t = render_functions()
-        staggered_render_text(_t, staggered=False)
+        render_text(_t, staggered=False)
         
         t = 0
         while t < 10:
@@ -594,19 +594,19 @@ def battle(f, start=True):
         zero_func = np.polyder(zero_func)
         _t += "\n\n\n\n\n\n" + "=".center(len(_t.split("\n")[5])) + "\n\n\n"
         _t += render_functions()
-        staggered_render_text(_t, staggered=False)
+        render_text(_t, staggered=False)
         
     i_died, z_died = len(f.c) == 1, len(zero_func.c) == 1
     text = ("Your mightiness is:\n" + str(f) +
             "\n\n\nCaptain Zero's mightiness is:\n" + str(zero_func) +
             "\n\n\n")
-    staggered_render_text(text, staggered=False)#, clickable=False)
+    render_text(text, staggered=False)#, clickable=False)
     if i_died and z_died:
         final = f.c[0] / zero_func.c[0]
         text += ("\n\nYou have fought each other to the death!\n"
                 f"Final score: {final}\n"
                 "Good game! ")
-        staggered_render_text(text, staggered=False)
+        render_text(text, staggered=False)
     elif z_died:
         i = f(123567654321234567)
         z = zero_func(123567654321234567)
@@ -619,12 +619,12 @@ def battle(f, start=True):
             text += ("\n\nYou have valiantly defeated the evil Captain Zero!\n"
                     "The limit has gone to ∞!\n"
                     "Game over! ")
-        staggered_render_text(text, staggered=False)
+        render_text(text, staggered=False)
     else:
         text += ("\n\nThe evil Captain Zero has evilly defeated you.\n"
                 "The limit has gone to 0.\n"
                 "Game over. ")
-        staggered_render_text(text, staggered=False)
+        render_text(text, staggered=False)
     sys.exit(0)
     
 def gen_func(min_=1, max_=4):
@@ -635,7 +635,7 @@ def gen_func(min_=1, max_=4):
     p4 = np.poly1d(z4)
     return p4
 
-def staggered_render_text(t, clickable=True, staggered=True):
+def render_text(t, clickable=True, staggered=True):
     rendered_texts = [""]
     t = list(t)[:]
     rendering = staggered
@@ -683,7 +683,7 @@ def storyline():
                  "Your current mightiness is:\n" + 
                   exp + "\n" + f + " " +
                   "\n\n\n         Click to continue. ")
-    staggered_render_text(full_intro)
+    render_text(full_intro)
     return func
 
 def intro():
@@ -706,12 +706,12 @@ def intro():
 def win(f):
     text = ("You have successfully escaped the planet\n"
             "of the evil Captain Zero! ")
-    # staggered_render_text(text)
+    # render_text(text)
     # time.sleep(1)
     text += ("                             \n              \n\n\n\n\nWhoa! On exiting orbit you have found\n"
              "the evil captain zero has set an evil trap!\n"
              "He must be defeated once and for all!")
-    staggered_render_text(text, clickable=False)
+    render_text(text, clickable=False)
     battle(f, start=False)
     
 def main():
