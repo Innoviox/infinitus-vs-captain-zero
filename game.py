@@ -6,7 +6,8 @@ import numpy as np
 import sys
 from PIL import Image
 
-global unlocked, entities, player1, moved, playerdied, zero_func
+global unlocked, entities, player1, moved, playerdied, zero_func, zerod
+zerod=False
 moved = None
 player1 = None
 entities = pygame.sprite.Group()
@@ -576,7 +577,7 @@ def run(l, function):
         pygame.display.update()
 
 def battle(f, start=True):
-    def render_functions():
+    def render_functions(a___=True):
         (ei, ni), (ez, nz) = str(f).split("\n"), str(zero_func).split("\n")
         l = max(len(ni), len(nz))
 
@@ -589,13 +590,15 @@ def battle(f, start=True):
         while len(nz) < (l + a) / 2:
             nz = " " + nz
             ez = " " + ez
-
-        text = ("Click to battle!\n\n\n" +
+        text = "Click to battle!" if a___ else ""
+        text += ("\n\n\n" +
                 "        " + ei + "\n" +
                 "  lim   " + ni + "\n" +
                 "        " + "-" * l + "\n" +
                 "        " + ez + "\n" +
                 " x -> ∞ " + nz)
+        text += "" if a___ else "\n\n\nClick to continue"
+        print(text, a___)
         return text
     text = ("Aha! You have found the infamous Captain Zero!\n"
             "\n\n\n              To battle!\n"
@@ -624,7 +627,7 @@ def battle(f, start=True):
         f = np.polyder(f)
         zero_func = np.polyder(zero_func)
         _t += "\n\n\n\n\n\n" + "=".center(len(_t.split("\n")[5])) + "\n\n\n"
-        _t += render_functions()
+        _t += render_functions(False)
         render_text(_t, staggered=False)
 
     i_died, z_died = len(f.c) == 1, len(zero_func.c) == 1
