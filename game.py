@@ -7,7 +7,7 @@ import sys
 from PIL import Image
 
 global unlocked, entities, player1, moved, playerdied, zero_func, zerod
-zerod=False
+zerod = False
 moved = None
 player1 = None
 entities = pygame.sprite.Group()
@@ -576,6 +576,7 @@ def run(l, function):
         full_blit(bg, camera)
         pygame.display.update()
 
+
 def battle(f, start=True):
     def render_functions(a___=True):
         (ei, ni), (ez, nz) = str(f).split("\n"), str(zero_func).split("\n")
@@ -592,13 +593,12 @@ def battle(f, start=True):
             ez = " " + ez
         text = "Click to battle!" if a___ else ""
         text += ("\n\n\n" +
-                "        " + ei + "\n" +
-                "  lim   " + ni + "\n" +
-                "        " + "-" * l + "\n" +
-                "        " + ez + "\n" +
-                " x -> ∞ " + nz)
+                 "        " + ei + "\n" +
+                 "  lim   " + ni + "\n" +
+                 "        " + "-" * l + "\n" +
+                 "        " + ez + "\n" +
+                 " x -> ∞ " + nz)
         text += "" if a___ else "\n\n\nClick to continue"
-        print(text, a___)
         return text
     text = ("Aha! You have found the infamous Captain Zero!\n"
             "\n\n\n              To battle!\n"
@@ -739,12 +739,10 @@ def intro():
 
 def win(f):
     text = ("You have successfully escaped the planet\n"
-            "of the evil Captain Zero! ")
-    # render_text(text)
-    # time.sleep(1)
-    text += ("                             \n              \n\n\n\n\nWhoa! On exiting orbit you have found\n"
-             "the evil captain zero has set an evil trap!\n"
-             "He must be defeated once and for all!")
+            "of the evil Captain Zero! "
+            "                             \n              \n\n\n\n\nWhoa! On exiting orbit you have found\n"
+            "the evil captain zero has set an evil trap!\n"
+            "He must be defeated once and for all!")
     render_text(text, clickable=False)
     battle(f, start=False)
 
