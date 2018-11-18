@@ -749,34 +749,7 @@ def win(f):
 
 def main():
     pygame.init()
-    l = [
-        '   Q                                       T',
-        'N  T                         LLL           B',
-        'TTTBT                   SS   LIL           B',
-        'B                    TTTTTTTTTTT           B',
-        'B                                          B',
-        'B                                          B',
-        'B     W                                    B',
-        'B    TTTTTTTT                              B',
-        'B                                          B',
-        'B                   @      TTTTTTT         B',
-        'B                 TTTTTT                   B',
-        'B                                          B',
-        'B         TTTTTTT                          B',
-        'B                       M                  B',
-        'B                     TTTTTT               B',
-        'B   U   M                                  B',
-        'B   TTTTTTTTTTT                            B',
-        'B                                          B',
-        'B                 TTTTTTTTTTT              B',
-        'B                                          B',
-        'B                                          B',
-        'B                                      OOO B',
-        'B                M                     OKO B',
-        'BTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAATTTTB'
-    ]
-    func = storyline()
-    run(l, func)
+    run([i[:-1] for i in open("level.txt").readlines()], storyline())
     win(func)
     raise SystemExit
 
