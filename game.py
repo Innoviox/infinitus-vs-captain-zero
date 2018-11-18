@@ -2,17 +2,25 @@ import pygame
 import os
 import time
 import random
+import numpy as np
+import time
 from PIL import Image
 
-global unlocked, entities, player1, moved
+global unlocked, entities, player1, moved, playerdied, zero_func
 moved = None
 player1 = None
 entities = pygame.sprite.Group()
 unlocked = []
+playerdied=False
+zero_func = None
 
 WIN_WIDTH = 800#1280
 WIN_HEIGHT = 640#800
 screen = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT), 0, 32)
+
+pygame.font.init()
+font = pygame.font.SysFont("monospace", 24)
+clock = pygame.time.Clock()
 
 HALF_WIDTH = int(WIN_WIDTH / 2)
 HALF_HEIGHT = int(WIN_HEIGHT / 2)
@@ -180,7 +188,8 @@ class Enemy(Platform):
             if not p is self:
                 if pygame.sprite.collide_rect(self, p):
                     if p.type in deadly:
-                        self.die()
+                        global playerdied
+                        playerdied=True
                         
                     elif p.type in winners:
                         self.won = True
@@ -282,8 +291,9 @@ class Player(Entity):
                 self.sy = 0
         def _collide(p):
             if pygame.sprite.collide_rect(self, p):
+                global playerdied
                 if p.type in deadly:
-                    self.die()
+                    playerdied=True
                     
                 elif p.type in winners:
                     self.won = True
@@ -293,7 +303,7 @@ class Player(Entity):
                     unlock(p.type)
                     
                 elif p.type[0] in enemies:
-                    self.die()
+                    playerdied=True
                 elif p.type[0] in movings.keys():
                     global moved
                     moved = [p.type, movings[p.type[0]]]
@@ -415,7 +425,12 @@ def full_blit(bg, camera):
         if e.show:
             screen.blit(e.image, camera.apply(e))
 
-def run(l):
+def render_function(f):
+    e, n = str(f).split("\n")
+    for i in e, "", n:
+        yield font.render(i, 1, (255,255,255))
+    
+def run(l, function):
     level = Level(SIZE, SIZE, l)
     level.start()
     
@@ -426,8 +441,6 @@ def run(l):
     bg = pygame.Surface((SIZE,SIZE))
     bg.convert()
     bg.fill(pygame.Color("#000000"))
-    
-    clock = pygame.time.Clock()
     
     global entities
     for p in level.platforms:
@@ -441,13 +454,14 @@ def run(l):
     total_level_width  = len(level.level[0])*SIZE
     total_level_height = len(level.level)*SIZE
     camera = Camera(total_level_width, total_level_height)
-
     up = left = right = False
     i=0
+    # p4 = gen_func()
+    f = function
+    
     while not player1.won:
         clock.tick(60)
         screen.fill((255, 255, 255))
-        
         for e in pygame.event.get():
             if e.type == pygame.KEYDOWN:
                 if e.key == pygame.K_UP:
@@ -479,6 +493,20 @@ def run(l):
         i += 1
 
         full_blit(bg, camera)
+        global playerdied
+        if playerdied:
+            print('whoa!')
+            
+            playerdied=False
+            # f = np.polyder(f)
+            if len(f.c) == 1:
+                final_death_anim()
+            else:
+                death_anim(f)
+            player1.die()
+        else:
+            for __i, __k in enumerate(render_function(f)):
+                screen.blit(__k, (0, __i*10))
         pygame.display.update()
 
     for (i,p) in enumerate(level.platforms):
@@ -501,7 +529,98 @@ def run(l):
         a.rect.left += 2
         a.rect.top -= 2
         full_blit(bg, camera)
-        pygame.display.update()        
+        pygame.display.update()
+
+def death_anim(f):
+    der = np.polyder(f)
+    text = ("Aha! You have found the infamous Captain Zero!\n"
+            "\n\n\n              To battle!\n"
+            "\n\n\n         Click to continue. ")
+    staggered_render_text(text, clickable=False)
+    global zero_func
+    if not zero_func:
+        zero_func = gen_func()
+
+    text = ("Your mightiness is:\n" + str(f) +
+            "\n\n\nCaptain Zero's mightiness is:\n" + str(zero_func) +
+            "\n\n\n        It's a BATTLE!")
+    staggered_render_text(text, clickable=False)
+    
+def gen_func():
+    x = np.random.rand(6)
+    y = np.random.rand(6)
+
+    z4 = np.polyfit(x, y, random.randint(2, 4)) 
+    p4 = np.poly1d(z4)
+    return p4
+
+def staggered_render_text(t, clickable=True):
+    rendered_texts = [""]
+    t = list(t)[:]
+    rendering = True
+    while t:
+        for event in pygame.event.get():
+            if event.type == pygame.MOUSEBUTTONUP and clickable:
+                rendering = False
+        s = t.pop(0)
+        if s == "\n":
+            rendered_texts.append("")
+            rendered_texts.append("")
+        else:
+            rendered_texts[-1] += s
+        if rendering:
+            label = [font.render(i, 1, (255, 255, 255)) for i in rendered_texts]
+
+            screen.fill((0, 0, 0))
+            for j, k in enumerate(label):
+                screen.blit(k, (0, j*10))
+            pygame.display.flip()
+        
+
+    clicked = False
+    while not clicked:
+        evs = pygame.event.get()
+        for event in evs:
+            if event.type == pygame.MOUSEBUTTONUP:
+                clicked = True
+
+        label = [font.render(i, 1, (255, 255, 255)) for i in rendered_texts]
+        screen.fill((0, 0, 0))
+        for j, k in enumerate(label):
+            screen.blit(k, (0, j*10))
+        pygame.display.flip()
+            
+def storyline():
+    func = gen_func()
+    exp, f = str(func).split("\n")
+    full_intro = ("You are Infinitus. Hailing from a distant galaxy, you\n"
+                 "have come to defeat the evil Captain Zero once and for\n"
+                 "all. Unfortunately you cannot breathe on his planet so\n"
+                 "you must wear a helmet. When you arrived, you did not\n"
+                 "find him and so chose to run back to your ship and \n"
+                 "come again another day. Get to your ship! \n"
+                 "Your current mightiness is:\n" + 
+                  exp + "\n" + f + " " +
+                  "\n\n\n         Click to continue. ")
+    staggered_render_text(full_intro)
+    return func
+
+def intro():
+    func = gen_func()
+    p4 = str(func).split("\n")
+    label = [font.render("              Your Mightiness Is:", 1, (255, 0, 0)),
+             font.render("", 1, (255, 0, 0))]
+    for j, i in enumerate(p4):
+        label.append(font.render(i, 1, (255, 0, 0)))
+    t = 0
+    while t < 10000:
+        screen.fill((255, 255, 255))
+        pygame.event.get()
+        for j, k in enumerate(label):
+            screen.blit(k, (0, j*10))
+        pygame.display.flip()
+        t += 60
+    return func
 
 def main():
     pygame.init()
@@ -531,7 +650,8 @@ def main():
        'B                M                     OKO B',
        'BTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAATTTTB'
        ]
-    run(l)
+    func = storyline()
+    run(l, func)
     print('You win!')
     raise SystemExit
 
