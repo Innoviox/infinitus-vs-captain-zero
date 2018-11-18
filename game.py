@@ -4,6 +4,7 @@ import time
 import random
 import numpy as np
 import time
+import sys
 from PIL import Image
 
 global unlocked, entities, player1, moved, playerdied, zero_func
@@ -20,6 +21,7 @@ screen = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT), 0, 32)
 
 pygame.font.init()
 font = pygame.font.SysFont("monospace", 24)
+bigfont = pygame.font.SysFont("monospace", 144)
 clock = pygame.time.Clock()
 
 HALF_WIDTH = int(WIN_WIDTH / 2)
@@ -63,6 +65,11 @@ images = {
           'W1': load('spider2.png'),
           'W2': load('spider3.png'),
           #'W3': load('spider3.png'),
+          'E1': load('bam1.png', size=(400,400)),
+          'E2': load('bam2.png', size=(800,640)),
+          'E3': load('bam3.png', size=(400,400)),
+          'E4': load('bam4.png', size=(400,400)),
+          'Z':  load('evil-in-its-raw-form.png'),
          }
 
 player_prefix = "infinity_"
@@ -100,17 +107,18 @@ class Entity(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
 
 class Platform(Entity):
-    def __init__(self, x, y, imag):
+    def __init__(self, x, y, imag, size=SIZE):
         Entity.__init__(self)
         self.image = imag
-        self.rect = pygame.Rect(x, y, SIZE, SIZE//2)
+        self.rect = pygame.Rect(x, y, size, size//2)
         self.type = {v: k for k,v in images.items()}[imag]
         self.show = True
         self.x = x
         self.y = y
         if self.type == 'J':
-            self.rect = pygame.Rect(x, y-SIZE, SIZE, SIZE//2)
+            self.rect = pygame.Rect(x, y-size, size, size//2)
         self.frame=0
+        
 class Changing(Platform):
     def __init__(self, x, y, imag, frames):
         Platform.__init__(self, x, y, images[imag+'1'])
@@ -190,6 +198,8 @@ class Enemy(Platform):
                     if p.type in deadly:
                         global playerdied
                         playerdied=True
+                        p.image = images['Z']
+                        p.show = True
                         
                     elif p.type in winners:
                         self.won = True
@@ -294,6 +304,13 @@ class Player(Entity):
                 global playerdied
                 if p.type in deadly:
                     playerdied=True
+                    p.image = images['Z']
+                    p.show = True
+                    print("setting image")
+                    print(p.image)
+                    p.type = 'Z'
+                    print(p.type)
+                    print(p.show)
                     
                 elif p.type in winners:
                     self.won = True
@@ -304,6 +321,8 @@ class Player(Entity):
                     
                 elif p.type[0] in enemies:
                     playerdied=True
+                    p.image = images['Z']
+                    p.show = True
                 elif p.type[0] in movings.keys():
                     global moved
                     moved = [p.type, movings[p.type[0]]]
@@ -458,7 +477,8 @@ def run(l, function):
     i=0
     # p4 = gen_func()
     f = function
-    
+    dead_i = 0
+    k = 0
     while not player1.won:
         clock.tick(60)
         screen.fill((255, 255, 255))
@@ -478,35 +498,52 @@ def run(l, function):
                     right = False
                 if e.key == pygame.K_LEFT:
                     left = False
-                
-
-                
-        player1.run(up, left, right)
-
-        camera.update(player1)
-
-        if i % 3/SPEED_SHIFT == 0:
-            player1.frameset()
-        if i % 6/SPEED_SHIFT == 0:
-            for e in level.enemies:
-                e.animate()
-        i += 1
-
-        full_blit(bg, camera)
         global playerdied
+        # print(i, k, dead_i)
         if playerdied:
-            print('whoa!')
-            
-            playerdied=False
+            pygame.event.get()
+            full_blit(bg, camera)
+            # print('im dead!')
+            if dead_i == 0:dead_i = 1
+            else: dead_i += 1
+##            print('whoa!')
+##            t = 0
+##            while t < 50:
+##                t += 1
+##                full_blit(bg, camera)
+##                pygame.display.update()
+##                time.sleep(0.1)
+##            playerdied=False
             # f = np.polyder(f)
-            if len(f.c) == 1:
-                final_death_anim()
-            else:
-                death_anim(f)
-            player1.die()
+            # if len(f.c) == 1:
+#                 final_death_anim()
+ #           else:
+            # battle(f)
+            # player1.die()
+            if dead_i >= 10:
+                screen.blit(bigfont.render("OH", 1, (255,0,0)), (200, 100))
+                #print("rendering 1")
+            if dead_i >= 30:
+                screen.blit(bigfont.render("NO", 1, (255, 0, 0)), (500, 100))
+                #print("rendering 2")
+            if dead_i > 60: 
+                battle(f)
         else:
+            player1.run(up, left, right)
+
+            camera.update(player1)
+
+            if i % 3/SPEED_SHIFT == 0:
+                player1.frameset()
+            if i % 6/SPEED_SHIFT == 0:
+                for e in level.enemies:
+                    e.animate()
+            i += 1
+
+            full_blit(bg, camera)
             for __i, __k in enumerate(render_function(f)):
                 screen.blit(__k, (0, __i*10))
+            k += 1
         pygame.display.update()
 
     for (i,p) in enumerate(level.platforms):
@@ -531,33 +568,101 @@ def run(l, function):
         full_blit(bg, camera)
         pygame.display.update()
 
-def death_anim(f):
-    der = np.polyder(f)
+def battle(f):
+    def render_functions():
+        (ei, ni), (ez, nz) = str(f).split("\n"), str(zero_func).split("\n")
+        l = max(len(ni), len(nz))
+        
+        a = len(ni)
+        while len(ni) < (l + a) / 2:
+            ni = " " + ni
+            ei = " " + ei
+
+        a = len(nz)
+        while len(nz) < (l + a) / 2:
+            nz = " " + nz
+            ez = " " + ez
+        
+        text = ("\n\n\n" +
+               "        " + ei + "\n" +
+               "  lim   " + ni + "\n" +
+               "        " + "-" * l + "\n" +
+               "        " + ez + "\n" +
+               " x -> ∞ " + nz)
+        return text
     text = ("Aha! You have found the infamous Captain Zero!\n"
             "\n\n\n              To battle!\n"
             "\n\n\n         Click to continue. ")
-    staggered_render_text(text, clickable=False)
+    staggered_render_text(text)#, clickable=False)
     global zero_func
     if not zero_func:
         zero_func = gen_func()
-
+    # screen = pygame.display.set_mode((1280, 800), 0, 32)
+    while len(f.c) > 1 and len(zero_func.c) > 1:
+        text = ("Your mightiness is:\n" + str(f) +
+                "\n\n\nCaptain Zero's mightiness is:\n" + str(zero_func) +
+                "\n\n\n        It's a BATTLE!")
+        staggered_render_text(text)#, clickable=False)
+        _t = render_functions()
+        staggered_render_text(_t, staggered=False)
+        
+        t = 0
+        while t < 10:
+            pygame.event.get()
+            bam = Platform(50, 50, images['E' + str(random.randint(2, 2))])
+            screen.blit(bam.image, (0, 0))
+            t += 1
+            time.sleep(0.01 - (t/10000))
+            pygame.display.update()
+        f = np.polyder(f)
+        zero_func = np.polyder(zero_func)
+        _t += "\n\n\n\n\n\n" + "=".center(len(_t.split("\n")[5])) + "\n\n\n"
+        _t += render_functions()
+        staggered_render_text(_t, staggered=False)
+        
+    i_died, z_died = len(f.c) == 1, len(zero_func.c) == 1
     text = ("Your mightiness is:\n" + str(f) +
             "\n\n\nCaptain Zero's mightiness is:\n" + str(zero_func) +
-            "\n\n\n        It's a BATTLE!")
-    staggered_render_text(text, clickable=False)
+            "\n\n\n")
+    staggered_render_text(text, staggered=False)#, clickable=False)
+    if i_died and z_died:
+        final = f.c[0] / zero_func.c[0]
+        text += ("\n\nYou have fought each other to the death!\n"
+                f"Final score: {final}\n"
+                "Good game! ")
+        staggered_render_text(text, staggered=False)
+    elif z_died:
+        i = f(123567654321234567)
+        z = zero_func(123567654321234567)
+        if i / z < 0:
+            text += ("\n\nYou have valiantly defeated the evil Captain Zero!\n"
+                     "But in doing so, you went to the dark side.\n"
+                    "The limit has gone to -∞!\n"
+                    "Game over! ")
+        else:
+            text += ("\n\nYou have valiantly defeated the evil Captain Zero!\n"
+                    "The limit has gone to ∞!\n"
+                    "Game over! ")
+        staggered_render_text(text, staggered=False)
+    else:
+        text += ("\n\nThe evil Captain Zero has evilly defeated you.\n"
+                "The limit has gone to 0.\n"
+                "Game over. ")
+        staggered_render_text(text, staggered=False)
+    sys.exit(0)
     
 def gen_func():
     x = np.random.rand(6)
     y = np.random.rand(6)
 
-    z4 = np.polyfit(x, y, random.randint(2, 4)) 
+    z4 = np.polyfit(x, y, random.randint(1, 4)) 
     p4 = np.poly1d(z4)
     return p4
 
-def staggered_render_text(t, clickable=True):
+def staggered_render_text(t, clickable=True, staggered=True):
     rendered_texts = [""]
     t = list(t)[:]
-    rendering = True
+    rendering = staggered
     while t:
         for event in pygame.event.get():
             if event.type == pygame.MOUSEBUTTONUP and clickable:
