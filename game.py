@@ -306,11 +306,6 @@ class Player(Entity):
                     playerdied=True
                     p.image = images['Z']
                     p.show = True
-                    print("setting image")
-                    print(p.image)
-                    p.type = 'Z'
-                    print(p.type)
-                    print(p.show)
                     
                 elif p.type in winners:
                     self.won = True
@@ -499,33 +494,15 @@ def run(l, function):
                 if e.key == pygame.K_LEFT:
                     left = False
         global playerdied
-        # print(i, k, dead_i)
         if playerdied:
             pygame.event.get()
             full_blit(bg, camera)
-            # print('im dead!')
             if dead_i == 0:dead_i = 1
             else: dead_i += 1
-##            print('whoa!')
-##            t = 0
-##            while t < 50:
-##                t += 1
-##                full_blit(bg, camera)
-##                pygame.display.update()
-##                time.sleep(0.1)
-##            playerdied=False
-            # f = np.polyder(f)
-            # if len(f.c) == 1:
-#                 final_death_anim()
- #           else:
-            # battle(f)
-            # player1.die()
             if dead_i >= 10:
                 screen.blit(bigfont.render("OH", 1, (255,0,0)), (200, 100))
-                #print("rendering 1")
             if dead_i >= 30:
                 screen.blit(bigfont.render("NO", 1, (255, 0, 0)), (500, 100))
-                #print("rendering 2")
             if dead_i > 60: 
                 battle(f)
         else:
@@ -597,7 +574,6 @@ def battle(f, start=True):
     global zero_func
     if not zero_func:
         zero_func = gen_func()
-    # screen = pygame.display.set_mode((1280, 800), 0, 32)
     while len(f.c) > 1 and len(zero_func.c) > 1:
         text = ("Your mightiness is:\n" + str(f) +
                 "\n\n\nCaptain Zero's mightiness is:\n" + str(zero_func) +
@@ -729,13 +705,13 @@ def intro():
 
 def win(f):
     text = ("You have successfully escaped the planet\n"
-            "of the dreadful Captain Zero! ")
+            "of the evil Captain Zero! ")
     # staggered_render_text(text)
     # time.sleep(1)
-    text += ("\n\n\n\n\n\nWhoa! On exiting orbit you have found\n"
-             "the dreadful captain zero has set an evil trap!\n"
+    text += ("                             \n              \n\n\n\n\nWhoa! On exiting orbit you have found\n"
+             "the evil captain zero has set an evil trap!\n"
              "He must be defeated once and for all!")
-    staggered_render_text(text)
+    staggered_render_text(text, clickable=False)
     battle(f, start=False)
     
 def main():
@@ -768,7 +744,6 @@ def main():
        ]
     func = storyline()
     run(l, func)
-    # print('You win!')
     win(func)
     raise SystemExit
 
